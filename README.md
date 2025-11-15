@@ -75,7 +75,3 @@ Developed as part of the
 **Learning Systems and Autonomous Agents Workshop (2025–2026)**  
 at *The Academic College of Tel Aviv–Yaffo*.
 
----
-
-## 📄 License
-MIT License (unless the team decides otherwise)
