@@ -186,18 +186,3 @@ Interlock exposes tools like:
 
 - “I want traceability (what sources were used, what tool calls ran) so I can **debug and govern** agent behavior.”
 - “I want budget controls (tokens, search rounds, retries) to keep the system **cost-predictable**.”
-
----
-
-## **What Interlock Produces**
-
-A successful run yields:
-
-- Pinned requirements (acceptance criteria + constraints)
-- Evidence index with provenance
-- Typed extracted entities
-- Grounded plan (steps cite evidence or assumptions)
-- Coverage report
-- Run trace (events + snapshot)
-- Execution result (tests run + output summary)
-- Invalidation report (when failing closed)
