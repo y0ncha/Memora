@@ -199,5 +199,5 @@ A successful run yields:
 - Grounded plan (steps cite evidence or assumptions)
 - Coverage report
 - Run trace (events + snapshot)
-- **Execution result** (tests run + output summary)
-- **Invalidation report** (when failing closed)
+- Execution result (tests run + output summary)
+- Invalidation report (when failing closed)
