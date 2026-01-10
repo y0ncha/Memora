@@ -1,107 +1,77 @@
 # Interlock
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-workshop--project-lightgrey)](#)
-[![Jira](https://img.shields.io/badge/integrates-Jira-blue)](#)
 
-Interlock is a Jira-native AI companion that supports engineers throughout the lifecycle of complex tickets by guiding reasoning, structuring discussion, and preserving context directly inside Jira comments.
+**Interlock** turns Jira ticket resolution into an **agentic context compiler** controlled by a **deterministic FSM/graph** and powered by a **structured State Bus**.
 
-Instead of private, ephemeral AI sessions, Interlock governs agent-assisted work at the ticket level, making decisions, progress, and dependencies visible and reusable.
-
----
-
-## Motivation
-
-AI assistants are increasingly used by engineers to reason about Jira tickets, but most interactions happen in private sessions that are not visible, persisted, or reusable.
-
-As a result:
-- Reasoning and decisions are lost after the session ends
-- Other engineers cannot learn from prior analysis
-- Tickets capture outcomes, but not the process that led to them
-
-Interlock addresses this gap by embedding AI assistance directly into Jira tickets, ensuring that reasoning is shared, auditable, and preserved.
+Instead of pushing raw dumps of Jira tickets and Confluence pages into a large language model, Interlock compiles the context into a **validated snapshot**: requirements are pinned early, evidence is indexed, claims are grounded, and the final output is a plan that is strictly traceable back to its sources.
 
 ---
 
-## What Interlock Does
+## **Motivation**
 
-Interlock acts as a step-by-step companion during ticket resolution.
+AI workflows for complex tickets often suffer from:
+1.  **The Context Tax**: Passing huge raw documents increases costs and latency while reducing accuracy.
+2.  **Compounding Hallucinations**: Early mistakes in file paths or assumptions cascade into the final output.
+3.  **Non-Deterministic Behavior**: Agents that "improvise" tool use often loop or fail unpredictably.
+4.  **Memory Drift**: Requirements get diluted or forgotten as more context is gathered.
 
-At a high level, it:
-- Scans the ticket and retrieves relevant context (similar tickets, documentation, discussions)
-- Generates a concise problem summary and possible resolution strategies
-- Deepens analysis after a strategy is selected, including dependencies and risks
-- Breaks the chosen approach into tasks and acceptance criteria
-- Accompanies the assignee during execution with structured progress updates
-
-All interaction happens through Jira comments (internal or public), keeping the entire process transparent.
+Interlock solves this by enforcing **evidence-first reasoning** and **pinned requirements**.
 
 ---
 
-## What Interlock Does *Not* Do
+## **Core Principles**
 
-Interlock is intentionally constrained.
-
-It does **not**:
-- Design solutions or architectures
-- Generate or modify code
-- Make autonomous decisions
-- Operate outside Jira tickets
-- Run private or hidden agent sessions
-
-Human engineers remain fully responsible for judgment and implementation.
+-   **Determinism over Improvisation**: A Finite State Machine (FSM) decides the next step, not the LLM. The model proposes structured data; the orchestrator handles routing.
+-   **Evidence-First**: The unit of reasoning is an **evidence object** (snippet + locator + provenance), not a full document.
+-   **Pinned Requirements**: Acceptance criteria are extracted and "pinned" immediately. Every later step must prove coverage against them.
+-   **Traceability**: A structured **State Bus** records every event (tool call, validation, delta), making runs fully replayable and debuggable.
 
 ---
 
-## Core Principles
+## **Architecture**
 
-- **Ticket-level agent sessions**  
-  Each Jira ticket is a single, governed agent session.
+Interlock separates control from data:
 
-- **Comment-first interaction**  
-  All agent output is posted as Jira comments.
+-   **Control Plane**: An FSM/Graph orchestrator that applies guards, budgets, and retry policies.
+-   **Data Plane**: Connectors (Jira, Confluence, GitHub, Repo) that fetch and normalize data into evidence.
+-   **State Bus**: An append-only event log and a materialized snapshot of the current run.
 
-- **Transparency over autonomy**  
-  Visibility and traceability are prioritized over automation.
+```mermaid
+flowchart LR
+  U["User / Trigger"] --> O["FSM/Graph Orchestrator"]
+  O <--> SB["State Bus (Snapshot + Events)"]
+  O --> T["Tools (Jira, Confluence, GitHub, Repo)"]
+  O --> M["LLM (Structured Outputs)"]
+  SB --> OUT["Plan + Coverage + Traceability"]
+```
 
-- **Human-in-the-loop by design**  
-  Engineers own all decisions.
+### **Execution Phases**
 
----
-
-## High-Level Architecture
-
-- Jira Extension (UI and ticket integration)
-- Issue Analyzer (extracts intent and signals)
-- Context Builder (retrieves organizational knowledge)
-- Companion Reasoning Layer (summarization and structuring)
-- Comment Orchestrator (controls flow and visibility)
-- Ticket-scoped state and policy enforcement
-
-All components operate within the scope of a single Jira ticket.
+1.  **Phase A - Pin and Gather**: Parse intent, validate scope, and **pin requirements** (immutable).
+2.  **Phase B - Compile Evidence**: Fetch sources, chunk them into **evidence objects**, and extract typed entities.
+3.  **Phase C - Verify and Plan**: Generate a plan where every step cites specific evidence IDs. Verify coverage against pinned requirements.
+4.  **Phase D - Deliver**: Post the grounded plan to Jira, or trigger a human interrupt if unknowns remain.
 
 ---
 
-## External Dependencies
+## **Tech Stack**
 
-- Jira (system of record)
-- Organizational knowledge hub (e.g. documentation, past tickets)
-- Language model provider for constrained reasoning
-
-No integration with code repositories or deployment systems is required.
-
----
-
-## Project Status
-
-This project is developed as part of an academic workshop.
-
-The focus is on:
-- Conceptual clarity
-- System design
-- Governance of AI-assisted workflows
+-   **Runtime**: Python 3.11+
+-   **Orchestration**: LangGraph-style deterministic FSM
+-   **Validation**: Pydantic schemas for all artifacts (Requirements, Evidence, Plan)
+-   **Integration**: MCP-style tool interfaces for Jira, Confluence, and GitHub
 
 ---
 
-## License
+## **Project Status**
+
+This project is developed as part of an academic workshop. The focus is on **governance, traceability, and deterministic design** for AI-assisted workflows.
+
+See [Implementation Plan](docs/Implementation.md) for the delivery roadmap.
+
+---
+
+## **License**
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
