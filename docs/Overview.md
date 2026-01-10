@@ -4,6 +4,10 @@ Interlock turns Jira ticket resolution into an **agentic context compiler** cont
 
 Instead of pushing raw Jira/Confluence/GitHub dumps into a model, Interlock compiles the ticket into a **validated snapshot**: requirements are pinned, evidence is indexed, claims are grounded, and the final output is a plan that stays traceable back to sources.
 
+**Interlock runs as an MCP server.**
+
+The server executes a deterministic FSM/graph that **controls an agent**. The agent performs external tool calls (Jira/Confluence/GitHub/repo) and returns structured artifacts. Interlock validates them at gateways, persists a replayable run trace, and either advances, fails closed with an invalidation report, or resumes from the last checkpoint once fixed.
+
 ---
 
 ## **Pain Points**
@@ -60,29 +64,93 @@ Interlock uses a **structured State Bus** that supports audit/debug:
 
 - append-only event history (what happened)
 - materialized snapshot (current state)
-    
-    This makes runs explainable and stable.
-    
+
+  This makes runs explainable and stable.
+
+
+### **5) Gateways + Resume**
+
+Interlock advances only when validations pass. On invalidation it fails closed with a clear report and stores next_state so the run can resume after the issue is fixed—without redoing earlier steps.
 
 ---
 
 ## **Design Overview**
 
-Interlock splits responsibilities into two layers:
+Interlock splits responsibilities into 3 layers:
 
-- **Control Plane (deterministic):** FSM/graph orchestrator that decides the next step, applies budgets/retries, and gates progress with validations.
-- **Data Plane (tools):** Jira / Confluence / GitHub / repo connectors that fetch and normalize data.
+- **MCP Server (Interface):** exposes tools to run flows and fetch artifacts
+- **Control Plane (Interlock):** deterministic FSM/graph + gateways + resume
+- **Worker (Agent + Tools):** performs tool calls and execution, returns structured results
 
 The model is used to extract structured artifacts (requirements, entities, plan), but **routing is deterministic**.
 
 ```mermaid
 flowchart LR
-  U["User / Trigger"] --> O["FSM/Graph Orchestrator"]
+  C["Client (Gemini CLI / UI)"] --> S["Interlock MCP Server"]
+  S --> O["Interlock Orchestrator (Deterministic FSM)"]
   O <--> SB["State Bus (Snapshot + Events)"]
-  O --> T["Tools (Jira, Confluence, GitHub, Repo)"]
-  O --> M["LLM (Structured Outputs)"]
-  SB --> OUT["Plan + Coverage + Traceability"]
+  O --> A["Agent (Tool-use + Execution)"]
+  A --> T["Tools (Jira/Confluence/GitHub/Repo)"]
+  SB --> OUT["Artifacts (Plan + Coverage + Trace)"]
 ```
+
+---
+
+## FSM Diagram
+
+```mermaid
+stateDiagram-v2
+  [*] --> PARSE_INTENT
+  PARSE_INTENT --> FETCH_CONTEXT
+  FETCH_CONTEXT --> PIN_CONTEXT
+  PIN_CONTEXT --> BUILD_EVIDENCE
+  BUILD_EVIDENCE --> GENERATE_PLAN
+  GENERATE_PLAN --> REQUEST_EXECUTION
+  REQUEST_EXECUTION --> VERIFY_EXECUTION
+  VERIFY_EXECUTION --> DELIVER: pass
+  VERIFY_EXECUTION --> FAIL_CLOSED: fail
+  DELIVER --> [*]
+  FAIL_CLOSED --> [*]
+```
+
+---
+
+## Snapshot Schema
+
+```json
+"run": {
+  "run_id": "...",
+  "ticket_id": "...",
+  "status": "RUNNING|FAIL_CLOSED|DELIVERED",
+  "next_state": "REQUEST_EXECUTION",
+  "created_at": "..."
+},
+"pinned": {
+  "problem_statement": "...",
+  "acceptance_criteria": ["..."],
+  "todos": ["..."],
+  "constraints": ["..."]
+},
+"working": {
+  ...
+  "execution": {
+    "request": { "instructions": "...", "must_run_tests": true },
+    "result": { "success": true, "tests_ran": ["pytest -q"], "test_output_summary": "..." }
+  }
+}
+```
+
+---
+
+## **MCP Tools**
+
+Interlock exposes tools like:
+
+- interlock.run
+- interlock.get_snapshot
+- interlock.get_events
+- interlock.get_summary
+- interlock.list_runs
 
 ---
 
@@ -91,7 +159,8 @@ flowchart LR
 - **Python** runtime
 - **LangGraph-style orchestration** (graph/FSM with checkpointing + interrupts)
 - **Pydantic schemas** (and PydanticAI-style patterns) for structured outputs and validation
-- Connectors via **MCP-style tools** (Jira/Confluence/GitHub + repo tooling)
+- **Interlock runs as an MCP server** exposing tools for ticket resolution and artifact retrieval
+- **Connectors** for Jira/Confluence/GitHub/repo can be implemented as MCP tools or direct adapters
 - Storage: start with **JSONL events + JSON snapshot**, optional upgrade to **SQLite/Postgres**
 
 ---
@@ -130,7 +199,5 @@ A successful run yields:
 - Grounded plan (steps cite evidence or assumptions)
 - Coverage report
 - Run trace (events + snapshot)
-
----
-
-If you want, I can also tweak the “Memory Drift” line in your current doc to replace **“frozen state”** with **“pinned requirements”** everywhere, so the wording stays consistent across documents.
+- **Execution result** (tests run + output summary)
+- **Invalidation report** (when failing closed)
