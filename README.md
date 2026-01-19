@@ -68,7 +68,49 @@ flowchart LR
 
 This project is developed as part of an academic workshop. The focus is on **governance, traceability, and deterministic design** for AI-assisted workflows.
 
-See [Implementation Plan](docs/Implementation.md) for the delivery roadmap.
+See [Planning Document](docs/Planing.md) for the PoC implementation plan.
+
+### **PoC Status**
+
+The Proof of Concept (PoC) demonstrates agent governance through MCP tool calls:
+
+- ✅ MCP server with `interlock_next_step` tool
+- ✅ Strict Pydantic `Ticket` schema validation
+- ✅ 7-step FSM with deterministic state transitions
+- ✅ Validation gates (IntakeGate, ExtractRequirementsGate)
+- ✅ Artifact persistence (JSONL storage)
+- ✅ End-to-end demo flow
+
+**Quick Start:**
+
+1. Install dependencies:
+   ```bash
+   pip install -e .
+   ```
+
+2. Run the demo (simplest way to test):
+   ```bash
+   python demo.py
+   ```
+   This demonstrates the full workflow and creates `interlock_data/` with persisted artifacts.
+
+3. Run unit tests:
+   ```bash
+   pip install -e ".[dev]"  # Install test dependencies
+   pytest test_interlock.py -v
+   ```
+
+4. Run the MCP server (FastMCP):
+   ```bash
+   python -m interlock.server
+   ```
+   
+   See [RUNNING.md](RUNNING.md) for detailed instructions on running and testing the server.
+
+**Testing:**
+See [TESTING.md](TESTING.md) for comprehensive testing instructions.
+
+The demo shows how an agent calls `interlock_next_step` with a `ticket.json`, receives governance instructions (status, next_state, agent_role), and progresses through FSM states. All artifacts are persisted to `interlock_data/`.
 
 ---
 
