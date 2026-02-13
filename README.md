@@ -88,7 +88,8 @@ The Proof of Concept (PoC) demonstrates agent governance through MCP tool calls:
 - ✅ MCP server with `interlock_next_step` tool
 - ✅ Strict Pydantic `Ticket` schema validation
 - ✅ 7-step FSM with deterministic state transitions
-- ✅ Validation gates (IntakeGate, ExtractRequirementsGate)
+- ✅ State-specific validation gates for all 7 states
+- ✅ Structured run artifacts (requirements, scope, evidence, plan, execution, finalization)
 - ✅ Artifact persistence (JSONL storage)
 - ✅ End-to-end demo flow
 
@@ -101,14 +102,14 @@ The Proof of Concept (PoC) demonstrates agent governance through MCP tool calls:
 
 2. Run the demo (simplest way to test):
    ```bash
-   python demo.py
+   python test/demo.py
    ```
    This demonstrates the full workflow and creates `interlock_data/` with persisted artifacts.
 
 3. Run unit tests:
    ```bash
    pip install -e ".[dev]"  # Install test dependencies
-   pytest test_interlock.py -v
+   pytest test/test_interlock.py -v
    ```
 
 4. Run the MCP server (FastMCP):

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from interlock.schemas.ticket import Ticket
 from interlock.fsm import State, transition
 from interlock.gates import get_gate_for_state
+from interlock.schemas.responses import InvalidationReport
 from interlock.storage import ArtifactStore
 
 # Configure logging
@@ -24,10 +25,29 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create FastMCP server instance
-mcp = FastMCP("Interlock", description="MCP server for solving Jira tickets with deterministic FSM governance")
+mcp = FastMCP("Interlock")
 
 # Initialize artifact store
 store = ArtifactStore()
+
+
+def _build_invalidation_report(
+    *,
+    failed_state: str,
+    failed_gate: str,
+    reason: str,
+    fixable: bool,
+    minimum_next_action: str,
+) -> dict[str, Any]:
+    """Build a structured invalidation payload."""
+    report = InvalidationReport(
+        failed_state=failed_state,
+        failed_gate=failed_gate,
+        reason=reason,
+        fixable=fixable,
+        minimum_next_action=minimum_next_action,
+    )
+    return report.model_dump()
 
 
 @mcp.tool()
@@ -70,9 +90,10 @@ def interlock_next_step(ticket_json: str) -> dict[str, Any]:
             details={"tool": "interlock_next_step", "ticket_id": ticket.ticket_id},
         )
     except json.JSONDecodeError as e:
+        reason = f"Invalid JSON: {str(e)}"
         error_response = {
             "status": "retry",
-            "reason": f"Invalid JSON: {str(e)}",
+            "reason": reason,
             "next_state": None,
             "agent_role": "Fix JSON syntax and retry",
             "gate_result": {
@@ -80,13 +101,21 @@ def interlock_next_step(ticket_json: str) -> dict[str, Any]:
                 "reasons": [f"JSON decode error: {str(e)}"],
                 "fixes": ["Ensure ticket_json is valid JSON"],
             },
+            "invalidation_report": _build_invalidation_report(
+                failed_state="unknown",
+                failed_gate="input_parser",
+                reason=reason,
+                fixable=True,
+                minimum_next_action="Provide valid JSON ticket payload",
+            ),
         }
         logger.error(f"JSON decode error: {e}")
         return error_response
     except ValidationError as e:
+        reason = f"Ticket validation failed: {str(e)}"
         error_response = {
             "status": "retry",
-            "reason": f"Ticket validation failed: {str(e)}",
+            "reason": reason,
             "next_state": None,
             "agent_role": "Fix ticket schema validation errors and retry",
             "gate_result": {
@@ -94,6 +123,13 @@ def interlock_next_step(ticket_json: str) -> dict[str, Any]:
                 "reasons": [f"Validation error: {str(e)}"],
                 "fixes": ["Check ticket schema: ticket_id, title, state, run_id are required"],
             },
+            "invalidation_report": _build_invalidation_report(
+                failed_state="unknown",
+                failed_gate="ticket_schema",
+                reason=reason,
+                fixable=True,
+                minimum_next_action="Fix schema violations in ticket payload",
+            ),
         }
         logger.error(f"Ticket validation error: {e}")
         return error_response
@@ -105,9 +141,16 @@ def interlock_next_step(ticket_json: str) -> dict[str, Any]:
     
     # If gate fails, return retry or stop
     if gate_result.status == "stop":
+        reason = f"Gate validation failed: {', '.join(gate_result.reasons)}"
+        store.save_event(
+            run_id=ticket.run_id,
+            event_type="gate_failed",
+            state=ticket.state,
+            details={"gate": gate.__class__.__name__, "reasons": gate_result.reasons},
+        )
         response = {
             "status": "stop",
-            "reason": f"Gate validation failed: {', '.join(gate_result.reasons)}",
+            "reason": reason,
             "next_state": None,
             "agent_role": "Cannot proceed - blocking validation failure",
             "gate_result": {
@@ -115,14 +158,28 @@ def interlock_next_step(ticket_json: str) -> dict[str, Any]:
                 "reasons": gate_result.reasons,
                 "fixes": gate_result.fixes,
             },
+            "invalidation_report": _build_invalidation_report(
+                failed_state=ticket.state,
+                failed_gate=gate.__class__.__name__,
+                reason=reason,
+                fixable=False,
+                minimum_next_action=", ".join(gate_result.fixes or ["Resolve blocking issue before retrying"]),
+            ),
         }
         logger.warning(f"Gate stopped: {gate_result.reasons}")
         return response
     
     if gate_result.status == "retry":
+        reason = f"Gate validation requires fixes: {', '.join(gate_result.reasons)}"
+        store.save_event(
+            run_id=ticket.run_id,
+            event_type="gate_retry",
+            state=ticket.state,
+            details={"gate": gate.__class__.__name__, "reasons": gate_result.reasons},
+        )
         response = {
             "status": "retry",
-            "reason": f"Gate validation requires fixes: {', '.join(gate_result.reasons)}",
+            "reason": reason,
             "next_state": None,
             "agent_role": f"Fix issues and retry: {', '.join(gate_result.fixes or [])}",
             "gate_result": {
@@ -130,6 +187,13 @@ def interlock_next_step(ticket_json: str) -> dict[str, Any]:
                 "reasons": gate_result.reasons,
                 "fixes": gate_result.fixes,
             },
+            "invalidation_report": _build_invalidation_report(
+                failed_state=ticket.state,
+                failed_gate=gate.__class__.__name__,
+                reason=reason,
+                fixable=True,
+                minimum_next_action=", ".join(gate_result.fixes or ["Apply suggested fixes and retry"]),
+            ),
         }
         logger.info(f"Gate retry: {gate_result.reasons}")
         return response

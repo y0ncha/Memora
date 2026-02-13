@@ -5,6 +5,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from interlock.schemas.artifacts import (
+    EvidenceArtifact,
+    ExecutionArtifact,
+    FinalizationArtifact,
+    PlanArtifact,
+    RequirementsArtifact,
+    ScopeArtifact,
+)
+
 
 class Ticket(BaseModel):
     """Structured ticket representation with strict validation."""
@@ -24,6 +33,12 @@ class Ticket(BaseModel):
     run_id: str = Field(..., min_length=1, description="Unique run identifier")
     created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.now, description="Last update timestamp")
+    requirements: RequirementsArtifact | None = Field(None, description="Pinned requirements artifact")
+    scope: ScopeArtifact | None = Field(None, description="Scoped retrieval targets artifact")
+    evidence: EvidenceArtifact | None = Field(None, description="Collected evidence artifact")
+    plan: PlanArtifact | None = Field(None, description="Structured plan artifact")
+    execution: ExecutionArtifact | None = Field(None, description="Execution artifact with checkpoints and outputs")
+    finalization: FinalizationArtifact | None = Field(None, description="Final milestone summary artifact")
     
     @field_validator("ticket_id", "title", "run_id")
     @classmethod
@@ -62,8 +77,3 @@ class Ticket(BaseModel):
         data = json.loads(json_str)
         return cls(**data)
     
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-        }

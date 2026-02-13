@@ -187,6 +187,11 @@ def test_end_to_end():
                 title=ticket1.title,
                 state=transition_result1.next_state.value,
                 run_id=run_id,
+                requirements={
+                    "acceptance_criteria": [{"id": "AC-1", "text": "Example requirement"}],
+                    "constraints": [{"id": "C-1", "text": "Example constraint"}],
+                    "unknowns": ["Unknown item"],
+                },
             )
             
             gate2 = get_gate_for_state(ticket2.state)
@@ -251,8 +256,8 @@ def main():
     if passed == total:
         print("\n🎉 All tests passed! Interlock PoC is working correctly.")
         print("\nNext steps:")
-        print("  - Run the demo: python demo.py")
-        print("  - Run unit tests: pytest test_interlock.py -v")
+        print("  - Run the demo: python test/demo.py")
+        print("  - Run unit tests: pytest test/test_interlock.py -v")
         print("  - See TESTING.md for more details")
         return 0
     else:
