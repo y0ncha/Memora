@@ -1,9 +1,0 @@
-{
-  "ticket_id": "DEMO-001",
-  "title": "Implement feature X",
-  "description": "Add a new feature that allows users to perform action Y. This should integrate with existing system Z and follow the established patterns.",
-  "state": "intake",
-  "run_id": "run-20250119-001",
-  "created_at": "2025-01-19T20:00:00",
-  "updated_at": "2025-01-19T20:00:00"
-}

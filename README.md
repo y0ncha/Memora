@@ -8,6 +8,17 @@ Instead of pushing raw dumps of Jira tickets and Confluence pages into a large l
 
 ---
 
+## **Implementations**
+
+This repository contains two implementations of Interlock:
+
+- **Python** (root directory): Original implementation using Python 3.11+, FastMCP, and Pydantic
+- **TypeScript** ([`interlock-ts/`](interlock-ts/)): TypeScript implementation using Node.js, @modelcontextprotocol/sdk, and Zod
+
+Both implementations provide the same functionality and can be used interchangeably. See the respective directories for implementation-specific documentation.
+
+---
+
 ## **Motivation**
 
 AI workflows for complex tickets often suffer from:

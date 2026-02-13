@@ -1,4 +1,8 @@
-"""MCP server entry point for Interlock using FastMCP."""
+"""MCP server for solving Jira tickets using Interlock governance workflow.
+
+This server provides tools for agents to solve Jira tickets (e.g., "Solve ticket XY-123")
+through a deterministic FSM workflow with validation gates and state transitions.
+"""
 
 import json
 import logging
@@ -20,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create FastMCP server instance
-mcp = FastMCP("Interlock")
+mcp = FastMCP("Interlock", description="MCP server for solving Jira tickets with deterministic FSM governance")
 
 # Initialize artifact store
 store = ArtifactStore()
@@ -29,16 +33,25 @@ store = ArtifactStore()
 @mcp.tool()
 def interlock_next_step(ticket_json: str) -> dict[str, Any]:
     """
-    Get the next step in the Interlock workflow.
+    Get the next step when solving a Jira ticket (e.g., "Solve ticket XY-123").
     
-    Accepts a ticket.json string, validates it, runs gates, and returns governance information:
-    whether to continue (status), what the next step is (next_state), and what the agent's role is.
+    This tool governs the agent's workflow for solving Jira tickets through a deterministic
+    FSM. When an agent receives a prompt like "Solve ticket XY-123", it should call this
+    tool with the ticket JSON to get governance instructions: whether to continue (status),
+    what the next step is (next_state), and what the agent's role should be.
+    
+    The tool validates the ticket, runs state-specific validation gates, and returns
+    governance information to guide the agent through the ticket resolution process.
     
     Args:
-        ticket_json: JSON string representation of the ticket (must conform to Ticket schema)
+        ticket_json: JSON string representation of the Jira ticket (must conform to Ticket schema)
         
     Returns:
-        Dictionary with status, next_state, agent_role, and gate_result
+        Dictionary with:
+        - status: "pass", "retry", or "stop" - whether the agent should continue
+        - next_state: Next FSM state to transition to (if status is "pass")
+        - agent_role: What the agent should do in the next step
+        - gate_result: Validation gate results with reasons and fixes
     """
     logger.info(f"Tool called: interlock_next_step with ticket_json length: {len(ticket_json)}")
     
