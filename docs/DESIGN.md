@@ -277,16 +277,16 @@ Implemented:
 - ✅ MCP server with FastMCP
 - ✅ Ticket schema with validation
 - ✅ 7-state FSM with transitions
-- ✅ State-specific gates for all 7 lifecycle states
-- ✅ Structured artifacts (requirements, scope, evidence, plan, execution, finalization)
-- ✅ Structured invalidation reports for retry/stop outcomes
+- ✅ 2 specific gates (IntakeGate, ExtractRequirementsGate) + GenericGate
 - ✅ Artifact persistence (JSONL)
 - ✅ End-to-end demo flow
 
 Not yet implemented (future):
-- External Jira/GitHub/Confluence tool integrations
-- Bounded retry budgets and loop prevention policies
-- Rich conflict detection across competing evidence
+- Remaining state-specific gates
+- Evidence gathering logic
+- Plan validation
+- Checkpointing
+- Integration with Jira/GitHub
 
 ## Key Takeaways
 

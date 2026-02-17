@@ -15,16 +15,79 @@
    - `fastmcp` - The FastMCP library for building MCP servers
    - `pydantic` - For schema validation
 
-## Running Locally
+## MCP configuration (agent runs the server)
 
-### Option 1: STDIO Mode (for MCP clients like Claude Desktop)
+The agent runs the Interlock server as an MCP. Configure the **command** and **args** in your MCP config file (`mcp.json` or `settings.json`) as a JSON object. The client will spawn the server process and connect via stdio.
 
-Run the server:
+### Config shape (JSON object)
+
+```json
+{
+  "mcpServers": {
+    "interlock": {
+      "command": "python",
+      "args": ["-m", "interlock.server"]
+    }
+  }
+}
+```
+
+- **`command`** — Executable used to run the server (e.g. `python`, `py`, or full path to venv Python).
+- **`args`** — Arguments list, typically `["-m", "interlock.server"]`.
+
+Optional:
+
+- **`cwd`** — Working directory (project root where `interlock` is installed).
+- **`env`** — Optional environment variables (object).
+
+### Example: `mcp.json`
+
+Copy from the repo example and adjust paths if needed:
+
+```json
+{
+  "mcpServers": {
+    "interlock": {
+      "command": "python",
+      "args": ["-m", "interlock.server"]
+    }
+  }
+}
+```
+
+With a virtualenv and fixed working directory:
+
+```json
+{
+  "mcpServers": {
+    "interlock": {
+      "command": "/path/to/py/.venv/bin/python",
+      "args": ["-m", "interlock.server"],
+      "cwd": "/path/to/py"
+    }
+  }
+}
+```
+
+### Where to put the config
+
+- **Cursor** — Use Cursor settings → MCP, or the config file your IDE uses for MCP servers (often a JSON object with `mcpServers` or similar).
+- **Claude Desktop** — e.g. `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS). Same `mcpServers` structure.
+- **Other MCP clients** — Put the same JSON object in the `mcp.json` or `settings.json` location your client documents.
+
+After saving the config, (re)start the client so the agent can use the `interlock_next_step` tool.
+
+---
+
+## Running Locally (manual)
+
+If you want to run the server process yourself (e.g. for debugging):
+
 ```bash
 python -m interlock.server
 ```
 
-The server will communicate via STDIN/STDOUT, which is the standard way MCP clients connect.
+The server will communicate via STDIN/STDOUT. Normally the **agent runs the server** via the MCP config above; you don't need to start it manually.
 
 ### Option 2: HTTP Mode (for testing with HTTP clients)
 
@@ -83,23 +146,9 @@ python test_client.py
 
 ### Test with Claude Desktop (or other MCP client)
 
-1. **Add to Claude Desktop MCP config** (`~/Library/Application Support/Claude/claude_desktop_config.json` on Mac):
-
-```json
-{
-  "mcpServers": {
-    "interlock": {
-      "command": "py",
-      "args": ["-m", "interlock.server"],
-      "cwd": "/path/to/Interlock"
-    }
-  }
-}
-```
-
-2. **Restart Claude Desktop**
-
-3. **Use the tool** - Claude will be able to call `interlock_next_step` with ticket JSON.
+1. Add the Interlock server to your MCP config (see **MCP configuration** above). For Claude Desktop on Mac, the config file is usually `~/Library/Application Support/Claude/claude_desktop_config.json`; use the same `mcpServers.interlock` JSON object with `command` and `args`.
+2. Restart the client.
+3. Use the tool — the agent can call `interlock_next_step` with ticket JSON.
 
 ## What Changed
 

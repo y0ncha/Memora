@@ -41,16 +41,50 @@ TRANSITION_MAP: dict[State, State] = {
     State.FINALIZE: State.FINALIZE,  # Terminal state
 }
 
-# Agent role descriptions for each state
+# Canonical agent role descriptions per state (single source of truth for responses).
+# Each must be a clear, rigid instruction for the agent in that state.
 AGENT_ROLES: dict[State, str] = {
-    State.INTAKE: "Parse the ticket and extract basic information (ticket_id, title, description)",
-    State.EXTRACT_REQUIREMENTS: "Extract acceptance criteria, constraints, and unknowns from the ticket",
-    State.SCOPE_CONTEXT: "Determine what context to retrieve based on requirements and unknowns",
-    State.GATHER_EVIDENCE: "Collect minimal supporting snippets with source pointers",
-    State.PROPOSE_PLAN: "Generate a step-by-step plan tied to requirements and grounded in evidence",
-    State.ACT: "Execute the plan using tools, producing candidate outputs with checkpoints",
-    State.FINALIZE: "Store canonical artifacts and post milestone summary",
+    State.INTAKE: (
+        "Parse the ticket and extract basic information: ticket_id, title, and description. "
+        "Do not infer requirements or plan; only normalize and structure the raw ticket."
+    ),
+    State.EXTRACT_REQUIREMENTS: (
+        "Extract acceptance criteria, constraints, and unknowns from the ticket. "
+        "Output a structured list of requirements and open questions; do not retrieve context or propose a plan."
+    ),
+    State.SCOPE_CONTEXT: (
+        "Determine what context to retrieve based on the stated requirements and unknowns. "
+        "Do not gather code snippets or propose a plan; only decide and request the minimal context needed."
+    ),
+    State.GATHER_EVIDENCE: (
+        "Collect minimal supporting snippets with source pointers (file, line, repo). "
+        "Do not propose a plan or execute changes; only gather evidence that will ground the plan."
+    ),
+    State.PROPOSE_PLAN: (
+        "Generate a step-by-step plan tied to requirements and grounded in the gathered evidence. "
+        "Do not execute the plan; only produce the plan with clear, checkable steps."
+    ),
+    State.ACT: (
+        "Execute the plan using tools: make the changes, run checks, and produce candidate outputs with checkpoints. "
+        "Do not finalize artifacts or post summaries until the act phase is complete."
+    ),
+    State.FINALIZE: (
+        "Store canonical artifacts (e.g. code, docs, config) and post a brief milestone summary. "
+        "No further FSM steps after this state."
+    ),
 }
+
+# Canonical role strings for non-pass outcomes (returned in response when not advancing).
+AGENT_ROLE_FINALIZE_DONE = "No further action required; ticket is in final state."
+AGENT_ROLE_INVALID_STATE = "Invalid state; cannot proceed. Fix ticket state and call again."
+AGENT_ROLE_GATE_RETRY = "Address the reported validation issues and call again with an updated ticket."
+AGENT_ROLE_GATE_STOP = "Blocking validation failure; cannot proceed."
+AGENT_ROLE_BAD_INPUT = "Fix the request (valid JSON and ticket schema) and call again."
+
+
+def get_agent_role(state: State) -> str:
+    """Return the canonical agent role description for the given state."""
+    return AGENT_ROLES.get(state, AGENT_ROLE_INVALID_STATE)
 
 
 def transition(current_state: State) -> TransitionResult:
@@ -71,9 +105,9 @@ def transition(current_state: State) -> TransitionResult:
             status="stop",
             reason="Already in final state",
             next_state=None,
-            agent_role="No further action required",
+            agent_role=AGENT_ROLE_FINALIZE_DONE,
         )
-    
+
     # Check if transition is allowed
     if current_state not in TRANSITION_MAP:
         logger.error(f"Invalid state for transition: {current_state}")
@@ -81,11 +115,11 @@ def transition(current_state: State) -> TransitionResult:
             status="stop",
             reason=f"Invalid state: {current_state}",
             next_state=None,
-            agent_role="Invalid state - cannot proceed",
+            agent_role=AGENT_ROLE_INVALID_STATE,
         )
-    
+
     next_state = TRANSITION_MAP[current_state]
-    agent_role = AGENT_ROLES.get(next_state, "Continue with next step")
+    agent_role = get_agent_role(next_state)
     
     logger.info(f"Transition approved: {current_state} -> {next_state}")
     

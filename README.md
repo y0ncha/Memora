@@ -88,8 +88,7 @@ The Proof of Concept (PoC) demonstrates agent governance through MCP tool calls:
 - ✅ MCP server with `interlock_next_step` tool
 - ✅ Strict Pydantic `Ticket` schema validation
 - ✅ 7-step FSM with deterministic state transitions
-- ✅ State-specific validation gates for all 7 states
-- ✅ Structured run artifacts (requirements, scope, evidence, plan, execution, finalization)
+- ✅ Validation gates (IntakeGate, ExtractRequirementsGate)
 - ✅ Artifact persistence (JSONL storage)
 - ✅ End-to-end demo flow
 
@@ -102,22 +101,21 @@ The Proof of Concept (PoC) demonstrates agent governance through MCP tool calls:
 
 2. Run the demo (simplest way to test):
    ```bash
-   python test/demo.py
+   python demo.py
    ```
    This demonstrates the full workflow and creates `interlock_data/` with persisted artifacts.
 
 3. Run unit tests:
    ```bash
    pip install -e ".[dev]"  # Install test dependencies
-   pytest test/test_interlock.py -v
+   pytest test_interlock.py -v
    ```
 
-4. Run the MCP server (FastMCP):
-   ```bash
-   python -m interlock.server
+4. Use the MCP server: the **agent** runs the server as an MCP. Configure **command** and **args** in `mcp.json` or `settings.json` (see [RUNNING.md](docs/RUNNING.md)#mcp-configuration-agent-runs-the-server). Example:
+   ```json
+   { "mcpServers": { "interlock": { "command": "python", "args": ["-m", "interlock.server"] } } }
    ```
-   
-   See [RUNNING.md](RUNNING.md) for detailed instructions on running and testing the server.
+   To run the server manually (e.g. for debugging): `python -m interlock.server`.
 
 **Testing:**
 See [TESTING.md](TESTING.md) for comprehensive testing instructions.
