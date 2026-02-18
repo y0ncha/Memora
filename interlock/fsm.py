@@ -41,51 +41,63 @@ STAGE_SPECS: dict[State, StageSpec] = {
     State.FETCH_TICKET: StageSpec(
         state=State.FETCH_TICKET,
         agent_role=(
-            "Fetch ticket context from source systems (Atlassian/Notion/Linear) and fill only the "
-            "required ticket fields. Do not extract requirements or propose a plan yet."
+            "Stage FETCH_TICKET (1/7). Goal: retrieve the ticket from source systems and normalize it. "
+            "Required output fields: external_source, external_ticket_id, title, description. "
+            "Do not infer requirements, propose a plan, or execute tools beyond retrieval."
         ),
         required_fields=("external_source", "external_ticket_id", "title", "description"),
     ),
     State.EXTRACT_REQUIREMENTS: StageSpec(
         state=State.EXTRACT_REQUIREMENTS,
         agent_role=(
-            "Extract acceptance criteria, constraints, and unknowns from the fetched ticket context. "
-            "Do not retrieve additional evidence or plan execution in this stage."
+            "Stage EXTRACT_REQUIREMENTS (2/7). Goal: convert ticket content into explicit requirements. "
+            "Required output fields: acceptance_criteria, constraints, unknowns. "
+            "Do not retrieve external context or produce execution steps."
         ),
         required_fields=("acceptance_criteria", "constraints", "unknowns"),
     ),
     State.SCOPE_CONTEXT: StageSpec(
         state=State.SCOPE_CONTEXT,
         agent_role=(
-            "Define explicit context retrieval targets and justifications based on the extracted requirements."
+            "Stage SCOPE_CONTEXT (3/7). Goal: define what context should be fetched next and why. "
+            "Required output fields: retrieval_targets, retrieval_justification. "
+            "Do not gather evidence snippets yet."
         ),
         required_fields=("retrieval_targets", "retrieval_justification"),
     ),
     State.GATHER_EVIDENCE: StageSpec(
         state=State.GATHER_EVIDENCE,
         agent_role=(
-            "Collect minimal evidence snippets with provenance and locators. Do not propose a plan yet."
+            "Stage GATHER_EVIDENCE (4/7). Goal: collect minimal traceable evidence with provenance. "
+            "Required output fields: evidence_items[{source_id, source_type, locator, snippet}]. "
+            "Do not propose the plan yet."
         ),
         required_fields=("evidence_items",),
     ),
     State.PROPOSE_PLAN: StageSpec(
         state=State.PROPOSE_PLAN,
         agent_role=(
-            "Produce a structured plan where each step maps to requirements and cites evidence."
+            "Stage PROPOSE_PLAN (5/7). Goal: generate a structured plan grounded in requirements and evidence. "
+            "Required output fields: plan_steps[{step_id, intent, requirement_refs, evidence_refs}]. "
+            "Do not execute plan actions in this stage."
         ),
         required_fields=("plan_steps",),
     ),
     State.ACT_VIA_TOOLS: StageSpec(
         state=State.ACT_VIA_TOOLS,
         agent_role=(
-            "Execute plan steps via tools, record actions, outputs, and checkpoints."
+            "Stage ACT_VIA_TOOLS (6/7). Goal: execute the approved plan in controlled chunks. "
+            "Required output fields: actions_taken, outputs, checkpoints. "
+            "Do not finalize artifacts/outcome yet."
         ),
         required_fields=("actions_taken", "outputs", "checkpoints"),
     ),
     State.RECORD_AND_FINALIZE: StageSpec(
         state=State.RECORD_AND_FINALIZE,
         agent_role=(
-            "Persist canonical artifacts, produce final summary, and report final outcome."
+            "Stage RECORD_AND_FINALIZE (7/7). Goal: persist artifacts and publish final result. "
+            "Required output fields: artifacts, final_summary, outcome(success|partial|blocked). "
+            "After this stage, the server moves to COMPLETE."
         ),
         required_fields=("artifacts", "final_summary", "outcome"),
     ),

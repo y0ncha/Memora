@@ -70,6 +70,7 @@ def test_begin_creates_clean_fetch_ticket():
     ticket = server.create_initial_ticket(ticket_id="PROJ-123", run_id="run_test_001")
     assert ticket.state == "fetch_ticket"
     assert ticket.agent_role
+    assert "Stage FETCH_TICKET" in ticket.agent_role
     assert ticket.required_fields == [
         "external_source",
         "external_ticket_id",
@@ -87,7 +88,9 @@ def test_submit_retry_when_required_fields_missing():
 
     assert response["continue"] is True
     assert response["next_state"] == "fetch_ticket"
+    assert response["next_role"]
     assert response["gate_result"]["status"] == "retry"
+    assert response["next_role"] == response["updated_ticket"]["agent_role"]
     missing = response["gate_result"]["missing_or_invalid_fields"]
     assert "description" in missing
     assert "external_ticket_id" in missing
@@ -101,8 +104,11 @@ def test_submit_advances_state_when_payload_valid():
 
     assert response["continue"] is True
     assert response["next_state"] == "extract_requirements"
+    assert response["next_role"]
     updated = Ticket(**response["updated_ticket"])
+    assert response["next_role"] == updated.agent_role
     assert updated.state == "extract_requirements"
+    assert "Stage EXTRACT_REQUIREMENTS" in updated.agent_role
     assert updated.required_fields == ["acceptance_criteria", "constraints", "unknowns"]
     assert updated.next_stage_fields == ["retrieval_targets", "retrieval_justification"]
 
